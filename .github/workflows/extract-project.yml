@@ -30,6 +30,8 @@ jobs:
 
           unzip -q "$ZIP_FILE" -d extracted
 
+          rm -f extracted/soundwave/.github/workflows/build-apk.yml
+
           PUBSPEC=$(find extracted -type f -name "pubspec.yaml" | head -n 1)
 
           if [ -z "$PUBSPEC" ]; then
