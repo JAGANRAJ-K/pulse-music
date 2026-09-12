@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Extract project ZIP
         run: |
@@ -20,38 +22,60 @@ jobs:
 
           ZIP_FILE="soundwave_ready_for_build.zip"
 
+          echo "Checking for ZIP file..."
+
           if [ ! -f "$ZIP_FILE" ]; then
             echo "ERROR: $ZIP_FILE was not found."
+            echo "Files currently in repository:"
+            ls -la
             exit 1
           fi
+
+          echo "ZIP file found."
 
           rm -rf extracted
           mkdir extracted
 
+          echo "Extracting ZIP..."
           unzip -q "$ZIP_FILE" -d extracted
 
-          rm -f extracted/soundwave/.github/workflows/build-apk.yml
+          echo "Searching for Flutter project..."
 
           PUBSPEC=$(find extracted -type f -name "pubspec.yaml" | head -n 1)
 
           if [ -z "$PUBSPEC" ]; then
             echo "ERROR: pubspec.yaml was not found inside the ZIP."
+            echo "Extracted files:"
+            find extracted -maxdepth 3 -type f | head -100
             exit 1
           fi
 
           PROJECT_DIR=$(dirname "$PUBSPEC")
 
-          echo "Flutter project found at: $PROJECT_DIR"
+          echo "Flutter project found at:"
+          echo "$PROJECT_DIR"
 
+          echo "Removing bundled GitHub workflows..."
+          rm -rf "$PROJECT_DIR/.github"
+
+          echo "Copying Flutter project to repository root..."
           cp -a "$PROJECT_DIR"/. .
 
+          echo "Cleaning temporary files..."
           rm -rf extracted
           rm -f "$ZIP_FILE"
+
+          echo "Extraction completed successfully."
 
       - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Sync with main branch
+        run: |
+          git fetch origin main
+          git rebase origin/main
 
       - name: Commit extracted project
         run: |
@@ -59,7 +83,11 @@ jobs:
 
           if git diff --cached --quiet; then
             echo "No changes to commit."
-          else
-            git commit -m "Extract Pulse Music Flutter project"
-            git push
+            exit 0
           fi
+
+          git commit -m "Extract Pulse Music Flutter project"
+
+      - name: Push extracted project
+        run: |
+          git push origin HEAD:main
