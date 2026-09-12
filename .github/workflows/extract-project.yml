@@ -1,0 +1,63 @@
+name: Extract Pulse Music Project
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract project ZIP
+        run: |
+          set -e
+
+          ZIP_FILE="soundwave_ready_for_build.zip"
+
+          if [ ! -f "$ZIP_FILE" ]; then
+            echo "ERROR: $ZIP_FILE was not found."
+            exit 1
+          fi
+
+          rm -rf extracted
+          mkdir extracted
+
+          unzip -q "$ZIP_FILE" -d extracted
+
+          PUBSPEC=$(find extracted -type f -name "pubspec.yaml" | head -n 1)
+
+          if [ -z "$PUBSPEC" ]; then
+            echo "ERROR: pubspec.yaml was not found inside the ZIP."
+            exit 1
+          fi
+
+          PROJECT_DIR=$(dirname "$PUBSPEC")
+
+          echo "Flutter project found at: $PROJECT_DIR"
+
+          cp -a "$PROJECT_DIR"/. .
+
+          rm -rf extracted
+          rm -f "$ZIP_FILE"
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit extracted project
+        run: |
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Extract Pulse Music Flutter project"
+            git push
+          fi
